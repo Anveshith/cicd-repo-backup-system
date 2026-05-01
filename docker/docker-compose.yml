@@ -1,0 +1,19 @@
+version: "3.9"
+
+services:
+  backup-runner:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    env_file: ../.env
+    volumes:
+      - ../backups:/backups
+
+  test-runner:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    command: bash -c "pytest /app/tests/ -v --tb=short"
+    env_file: ../.env
+    volumes:
+      - ../backups:/backups

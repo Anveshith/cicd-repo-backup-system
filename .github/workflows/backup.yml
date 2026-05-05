@@ -14,10 +14,10 @@ jobs:
 
     steps:
       - name: Checkout this repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v4.2.2
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v3.10.0
 
       - name: Build Docker image
         run: docker compose -f docker/docker-compose.yml build
@@ -42,7 +42,7 @@ jobs:
             test-runner
 
       - name: Upload backup artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v4.6.2
         with:
           name: backup-${{ github.run_id }}
           path: backups/

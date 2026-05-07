@@ -8,6 +8,7 @@ GPG_PASSPHRASE = os.environ.get("GPG_PASSPHRASE", "")
 
 
 def get_latest_backup():
+    """Find the most recent .gpg backup file."""
     files = sorted(
         [f for f in os.listdir(BACKUP_DIR) if f.endswith(".gpg")],
         reverse=True
@@ -19,23 +20,23 @@ def get_latest_backup():
 class TestBackupExists:
     def test_backup_file_created(self):
         path = get_latest_backup()
-        assert os.path.isfile(path)
+        assert os.path.isfile(path), f"Backup file not found: {path}"
 
     def test_backup_size_is_reasonable(self):
         path = get_latest_backup()
         size = os.path.getsize(path)
-        assert size > 512, f"Backup too small ({size} bytes)"
+        assert size > 512, f"Backup too small ({size} bytes) — likely empty"
 
     def test_manifest_exists(self):
         manifest = os.path.join(BACKUP_DIR, "manifest.json")
-        assert os.path.isfile(manifest)
+        assert os.path.isfile(manifest), "manifest.json not created"
 
     def test_manifest_is_valid_json(self):
         manifest = os.path.join(BACKUP_DIR, "manifest.json")
         with open(manifest) as f:
             data = json.load(f)
-        assert isinstance(data, list)
-        assert len(data) > 0
+        assert isinstance(data, list), "Manifest should be a JSON array"
+        assert len(data) > 0, "Manifest is empty"
 
     def test_manifest_has_required_fields(self):
         manifest = os.path.join(BACKUP_DIR, "manifest.json")
@@ -43,7 +44,7 @@ class TestBackupExists:
             data = json.load(f)
         latest = data[-1]
         for field in ["file", "repo", "timestamp", "size_bytes"]:
-            assert field in latest
+            assert field in latest, f"Missing field '{field}' in manifest"
 
 
 class TestBackupIntegrity:
@@ -53,8 +54,8 @@ class TestBackupIntegrity:
             ["gpg", "--list-packets", "--batch", path],
             capture_output=True, text=True
         )
-        assert result.returncode == 0
-        assert "encrypted" in result.stdout.lower()
+        assert result.returncode == 0, f"gpg failed: {result.stderr}"
+        assert "encrypted" in result.stdout.lower(), "File doesn't appear GPG-encrypted"
 
     def test_decrypt_succeeds(self, tmp_path):
         path = get_latest_backup()
@@ -66,8 +67,9 @@ class TestBackupIntegrity:
              "--decrypt", path],
             capture_output=True, text=True
         )
-        assert result.returncode == 0
-        assert out.exists()
+        assert result.returncode == 0, f"Decryption failed: {result.stderr}"
+        assert out.exists(), "Decrypted file not created"
+        assert out.stat().st_size > 0, "Decrypted file is empty"
 
     def test_decrypted_is_valid_tar(self, tmp_path):
         path = get_latest_backup()
@@ -82,8 +84,8 @@ class TestBackupIntegrity:
             ["tar", "-tzf", str(out)],
             capture_output=True, text=True
         )
-        assert result.returncode == 0
-        assert ".git" in result.stdout
+        assert result.returncode == 0, "tar listing failed — archive may be corrupt"
+        assert ".git" in result.stdout, "No .git directory found in archive"
 
     def test_restore_produces_git_repo(self, tmp_path):
         path = get_latest_backup()
@@ -99,9 +101,9 @@ class TestBackupIntegrity:
             check=True, capture_output=True
         )
         git_dirs = list(tmp_path.glob("*.git"))
-        assert git_dirs
+        assert git_dirs, "No bare .git repo found after restore"
         result = subprocess.run(
             ["git", "-C", str(git_dirs[0]), "log", "--oneline", "-3"],
             capture_output=True, text=True
         )
-        assert result.returncode == 0
+        assert result.returncode == 0, "git log failed — repo may be corrupt"

@@ -2,10 +2,10 @@ name: Repository Backup
 
 on:
   schedule:
-    - cron: "0 2 * * *"       # Runs daily at 02:00 UTC
+    - cron: "0 2 * * *"
   push:
     branches: [main]
-  workflow_dispatch:            # Allows manual trigger from GitHub UI
+  workflow_dispatch:
 
 jobs:
   backup-and-test:
@@ -13,44 +13,40 @@ jobs:
     timeout-minutes: 30
 
     steps:
-      - name: Checkout this repo
-        uses: actions/checkout@v4.2.2
+      - name: Checkout
+        uses: actions/checkout@v4
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3.10.0
+        uses: docker/setup-buildx-action@v3
 
       - name: Build Docker image
-        run: docker compose -f docker/docker-compose.yml build --no-cache
+        run: docker build --no-cache -t backup-image -f docker/Dockerfile .
+
       - name: Run backup
-        env:
-          REPO_URL: ${{https://github.com/Anveshith/cicd-repo-backup-system}}
-          BACKUP_DIR: /backups
-          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
         run: |
-          docker compose -f docker/docker-compose.yml run \
-            -e REPO_URL -e BACKUP_DIR -e GPG_PASSPHRASE \
-            backup-runner
+          docker run --rm \
+            -e REPO_URL=${{ secrets.REPO_URL }} \
+            -e BACKUP_DIR=/backups \
+            -e GPG_PASSPHRASE=${{ secrets.GPG_PASSPHRASE }} \
+            -v ${{ github.workspace }}/backups:/backups \
+            backup-image
 
       - name: Run tests
-        env:
-          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
-          BACKUP_DIR: /backups
         run: |
-          docker compose -f docker/docker-compose.yml run \
-            -e GPG_PASSPHRASE -e BACKUP_DIR \
-            test-runner
+          docker run --rm \
+            --entrypoint bash \
+            -e GPG_PASSPHRASE=${{ secrets.GPG_PASSPHRASE }} \
+            -e BACKUP_DIR=/backups \
+            -v ${{ github.workspace }}/backups:/backups \
+            backup-image -c "pytest /app/tests/ -v --tb=short"
 
       - name: Upload backup artifact
-        uses: actions/upload-artifact@v4.6.2
+        uses: actions/upload-artifact@v4
         with:
           name: backup-${{ github.run_id }}
           path: backups/
           retention-days: 30
 
-      - name: Report success
+      - name: Report result
         if: success()
         run: echo "✅ Backup and tests passed on $(date)"
-
-      - name: Report failure
-        if: failure()
-        run: echo "❌ Backup pipeline failed — check logs above"

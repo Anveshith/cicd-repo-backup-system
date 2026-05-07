@@ -3,10 +3,7 @@ services:
     build:
       context: ..
       dockerfile: docker/Dockerfile
-    environment:
-      - REPO_URL=${https://github.com/Anveshith/cicd-repo-backup-system}
-      - BACKUP_DIR=/backups
-      - GPG_PASSPHRASE=${MyBackupVault!2026}
+    env_file: ../.env
     volumes:
       - ../backups:/backups
 
@@ -15,8 +12,6 @@ services:
       context: ..
       dockerfile: docker/Dockerfile
     command: bash -c "pytest /app/tests/ -v --tb=short"
-    environment:
-      - GPG_PASSPHRASE=${MyBackupVault!2026}
-      - BACKUP_DIR=/backups
+    env_file: ../.env
     volumes:
       - ../backups:/backups

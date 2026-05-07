@@ -20,11 +20,10 @@ jobs:
         uses: docker/setup-buildx-action@v3.10.0
 
       - name: Build Docker image
-        run: docker compose -f docker/docker-compose.yml build
-
+        run: docker compose -f docker/docker-compose.yml build --no-cache
       - name: Run backup
         env:
-          REPO_URL: ${{ secrets.REPO_URL }}
+          REPO_URL: ${{https://github.com/Anveshith/cicd-repo-backup-system}}
           BACKUP_DIR: /backups
           GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
         run: |

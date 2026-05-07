@@ -10,7 +10,7 @@ RUN apt-get update && apt-get install -y \
 WORKDIR /app
 
 COPY scripts/ ./scripts/
-COPY tests/   ./tests/
+COPY tests/ ./tests/
 
 RUN pip install --no-cache-dir pytest && \
     chmod +x scripts/backup.sh scripts/restore.sh

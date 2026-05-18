@@ -17,6 +17,15 @@ def get_latest_backup():
     return os.path.join(BACKUP_DIR, files[0])
 
 
+def get_gpg_env():
+    """Get environment variables for GPG commands, disabling agent in CI."""
+    env = os.environ.copy()
+    # Disable GPG agent in non-interactive environments (CI/CD)
+    env["GNUPGHOME"] = "/tmp/gpg"
+    env["GPG_TTY"] = os.ttyname(0) if os.isatty(0) else ""
+    return env
+
+
 class TestBackupExists:
     def test_backup_file_created(self):
         path = get_latest_backup()
@@ -52,7 +61,7 @@ class TestBackupIntegrity:
         path = get_latest_backup()
         result = subprocess.run(
             ["gpg", "--list-packets", "--batch", path],
-            capture_output=True, text=True
+            capture_output=True, text=True, env=get_gpg_env()
         )
         assert result.returncode == 0, f"gpg failed: {result.stderr}"
         assert "encrypted" in result.stdout.lower(), "File doesn't appear GPG-encrypted"
@@ -65,7 +74,7 @@ class TestBackupIntegrity:
              "--passphrase", GPG_PASSPHRASE,
              "--output", str(out),
              "--decrypt", path],
-            capture_output=True, text=True
+            capture_output=True, text=True, env=get_gpg_env()
         )
         assert result.returncode == 0, f"Decryption failed: {result.stderr}"
         assert out.exists(), "Decrypted file not created"
@@ -78,7 +87,7 @@ class TestBackupIntegrity:
             ["gpg", "--batch", "--yes",
              "--passphrase", GPG_PASSPHRASE,
              "--output", str(out), "--decrypt", path],
-            check=True, capture_output=True
+            check=True, capture_output=True, env=get_gpg_env()
         )
         result = subprocess.run(
             ["tar", "-tzf", str(out)],
@@ -94,7 +103,7 @@ class TestBackupIntegrity:
             ["gpg", "--batch", "--yes",
              "--passphrase", GPG_PASSPHRASE,
              "--output", str(out), "--decrypt", path],
-            check=True, capture_output=True
+            check=True, capture_output=True, env=get_gpg_env()
         )
         subprocess.run(
             ["tar", "-xzf", str(out), "-C", str(tmp_path)],

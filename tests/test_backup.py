@@ -23,6 +23,15 @@ def get_gpg_env():
     # Disable GPG agent in non-interactive environments (CI/CD)
     env["GNUPGHOME"] = "/tmp/gpg"
     os.makedirs(env["GNUPGHOME"], exist_ok=True)
+    # Set restrictive permissions for GPG home directory
+    os.chmod(env["GNUPGHOME"], 0o700)
+    # Initialize GPG by running a simple command to create keyring
+    subprocess.run(
+        ["gpg", "--batch", "--list-keys"],
+        env=env,
+        capture_output=True,
+        timeout=5
+    )
     env["GPG_TTY"] = os.ttyname(0) if os.isatty(0) else ""
     return env
 

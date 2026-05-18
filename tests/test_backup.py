@@ -22,6 +22,7 @@ def get_gpg_env():
     env = os.environ.copy()
     # Disable GPG agent in non-interactive environments (CI/CD)
     env["GNUPGHOME"] = "/tmp/gpg"
+    os.makedirs(env["GNUPGHOME"], exist_ok=True)
     env["GPG_TTY"] = os.ttyname(0) if os.isatty(0) else ""
     return env
 

@@ -25,14 +25,15 @@ def get_gpg_env():
     os.makedirs(env["GNUPGHOME"], exist_ok=True)
     # Set restrictive permissions for GPG home directory
     os.chmod(env["GNUPGHOME"], 0o700)
-    # Initialize GPG by running a simple command to create keyring
+    # Disable agent entirely to avoid socket issues
+    env["GPG_AGENT_INFO"] = ""
+    # Initialize GPG by creating empty pubring
     subprocess.run(
-        ["gpg", "--batch", "--list-keys"],
+        ["gpg", "--batch", "--no-default-keyring", "--list-keys"],
         env=env,
         capture_output=True,
         timeout=5
     )
-    env["GPG_TTY"] = os.ttyname(0) if os.isatty(0) else ""
     return env
 
 
@@ -70,7 +71,7 @@ class TestBackupIntegrity:
     def test_file_is_valid_gpg_encrypted(self):
         path = get_latest_backup()
         result = subprocess.run(
-            ["gpg", "--list-packets", "--batch", path],
+            ["gpg", "--list-packets", "--batch", "--no-default-keyring", path],
             capture_output=True, text=True, env=get_gpg_env()
         )
         assert result.returncode == 0, f"gpg failed: {result.stderr}"
@@ -80,7 +81,7 @@ class TestBackupIntegrity:
         path = get_latest_backup()
         out = tmp_path / "decrypted.tar.gz"
         result = subprocess.run(
-            ["gpg", "--batch", "--yes",
+            ["gpg", "--batch", "--yes", "--no-default-keyring",
              "--passphrase", GPG_PASSPHRASE,
              "--output", str(out),
              "--decrypt", path],
@@ -94,7 +95,7 @@ class TestBackupIntegrity:
         path = get_latest_backup()
         out = tmp_path / "decrypted.tar.gz"
         subprocess.run(
-            ["gpg", "--batch", "--yes",
+            ["gpg", "--batch", "--yes", "--no-default-keyring",
              "--passphrase", GPG_PASSPHRASE,
              "--output", str(out), "--decrypt", path],
             check=True, capture_output=True, env=get_gpg_env()
@@ -110,7 +111,7 @@ class TestBackupIntegrity:
         path = get_latest_backup()
         out = tmp_path / "decrypted.tar.gz"
         subprocess.run(
-            ["gpg", "--batch", "--yes",
+            ["gpg", "--batch", "--yes", "--no-default-keyring",
              "--passphrase", GPG_PASSPHRASE,
              "--output", str(out), "--decrypt", path],
             check=True, capture_output=True, env=get_gpg_env()
